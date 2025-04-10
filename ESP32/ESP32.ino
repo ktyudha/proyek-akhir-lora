@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <LoRa.h>
 #include <Wire.h>
+#include <Adafruit_BMP280.h>
 
 // LoRa
 #define ss 5
@@ -12,10 +13,33 @@ const int DRY_VALUE = 3620;   // Nilai ADC ketika sensor di udara (kering)
 const int WET_VALUE = 1680;   // Nilai ADC ketika sensor terendam air (basah)
 const int SENSOR_PIN = 15;    // GPIO15 (ADC2 - hati-hati jika pakai WiFi)
 
+// Sensor BMP280
+Adafruit_BMP280 bmp; // I2C
+
+void setupBmp280(){
+  unsigned status;
+    status = bmp.begin(0x76);
+    
+    if (!status) {
+      Serial.println(F("Could not find a valid BMP280 sensor!"));
+      while (1) delay(10);
+    }
+
+    /* Default settings from datasheet. */
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                    Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                    Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                    Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                    Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+}
+
 void setup() {
   Serial.begin(115200);
   while (!Serial);
 
+  // Initial bmp280
+  setupBmp280();
+  
   Serial.println("LoRa Sender");
   LoRa.setPins(ss, rst, dio0);
 
@@ -42,8 +66,10 @@ int readSoilMoisturePercent() {
   return constrain(soilMoisturePercent, 0, 100);
 }
 
+
 void loop() {
-  int temperature = random(10, 41);      // 10-40°C (avoid extremes)
+  float temperature = bmp.readTemperature();      // 10-40°C (avoid extremes)
+  // int humidity = random(30, 37);
   int humidity = readSoilMoisturePercent();
   float ph = random(35, 91) / 10.0;      // pH 3.5-9.0 (1 decimal)
   int nitrogen = random(0, 201);         // 0-200 ppm N
